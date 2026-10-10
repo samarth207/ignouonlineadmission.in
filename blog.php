@@ -1,6 +1,5 @@
 <?php
 declare(strict_types=1);
-require __DIR__ . '/admin/bootstrap.php';
 
 $slug = trim((string) ($_GET['slug'] ?? ''));
 $post = null;
@@ -9,6 +8,7 @@ $posts = [];
 $canonical = 'https://ignouonlineadmission.in/blog/';
 $databaseAvailable = true;
 try {
+    require __DIR__ . '/admin/bootstrap.php';
     $db = blog_db();
     $db->exec("UPDATE blogs SET status = 'published' WHERE status = 'scheduled' AND publish_date <= UTC_TIMESTAMP()");
     if ($slug !== '') {
@@ -34,7 +34,13 @@ try {
 } catch (Throwable $error) {
     error_log('Public blog request failed: ' . $error->getMessage());
     $databaseAvailable = false;
-    http_response_code(503);
+    http_response_code(200);
+}
+if (!function_exists('blog_escape')) {
+    function blog_escape(string $value): string
+    {
+        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
 }
 
 $pageTitle = $post ? (string) ($post['meta_title'] ?: $post['title']) : 'IGNOU Online Admission Blog';
@@ -57,16 +63,18 @@ $schema = $post ? json_encode([
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <?php if (!$databaseAvailable): ?><meta name="robots" content="noindex, nofollow"><?php endif; ?>
     <title><?= blog_escape($pageTitle) ?></title>
     <meta name="description" content="<?= $pageDescription ?>">
     <link rel="canonical" href="<?= blog_escape($canonical) ?>">
+    <link rel="icon" href="/img/favicon.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Raleway:wght@500;600;700;800&display=swap" rel="stylesheet">
-    <link href="css/blog.css" rel="stylesheet">
+    <link href="/css/blog.css" rel="stylesheet">
     <?php if ($schema !== ''): ?><script type="application/ld+json"><?= $schema ?></script><?php endif; ?>
 </head>
 <body>
-    <header class="blog-masthead"><div class="blog-nav"><a href="index.html" class="site-mark"><img src="img/logo.png" alt="IGNOU Online Admission"><span>IGNOU <small>ONLINE ADMISSION</small></span></a><nav><a href="index.html">Home</a><a href="programme/0.html">Programmes</a><a href="contact.html">Contact</a></nav></div></header>
+    <header class="blog-masthead"><div class="blog-nav"><a href="/index.html" class="site-mark"><img src="/img/logo.png" alt="IGNOU Online Admission"><span>IGNOU <small>ONLINE ADMISSION</small></span></a><nav><a href="/index.html">Home</a><a href="/programme/0.html">Programmes</a><a href="/contact.html">Contact</a></nav></div></header>
     <?php if ($post): ?>
         <main class="article-page">
             <div class="article-breadcrumb"><a href="/blog/">Blog</a><span>/</span><span><?= blog_escape($post['title']) ?></span></div>
@@ -95,12 +103,12 @@ $schema = $post ? json_encode([
             })();
         </script>
     <?php elseif (!$databaseAvailable): ?>
-        <main class="blog-empty"><p>IGNOU ONLINE ADMISSION</p><h1>The blog is temporarily unavailable.</h1><a href="index.html">Return to the website</a></main>
+        <main class="blog-empty"><p>IGNOU ONLINE ADMISSION</p><h1>The blog is being set up.</h1><a href="/index.html">Return to the website</a></main>
     <?php elseif ($posts): ?>
         <main class="blog-index"><header class="blog-index-heading"><p>IGNOU ONLINE ADMISSION</p><h1>Learning, one story at a time.</h1><span>Updates and practical guidance for your next step.</span></header><div class="post-grid"><?php foreach ($posts as $item): ?><article class="post-card"><a class="post-image" href="/blog/<?= rawurlencode($item['slug']) ?>"><img src="<?= blog_escape($item['feature_image']) ?>" alt="<?= blog_escape($item['feature_image_alt']) ?>" loading="lazy"></a><div class="post-card-copy"><p class="post-meta"><?= blog_escape(date('M j, Y', strtotime((string) $item['publish_date']))) ?> <span>·</span> <?= (int) $item['read_time'] ?> min read</p><h2><a href="/blog/<?= rawurlencode($item['slug']) ?>"><?= blog_escape($item['title']) ?></a></h2><p><?= blog_escape($item['excerpt']) ?></p><a class="read-link" href="/blog/<?= rawurlencode($item['slug']) ?>">Read story <span>→</span></a></div></article><?php endforeach; ?></div></main>
     <?php else: ?>
-        <main class="blog-empty"><p>IGNOU ONLINE ADMISSION</p><h1><?= $slug !== '' ? 'This story is not available.' : 'Stories are on their way.' ?></h1><a href="index.html">Return to the website</a></main>
+        <main class="blog-empty"><p>IGNOU ONLINE ADMISSION</p><h1><?= $slug !== '' ? 'This story is not available.' : 'Stories are on their way.' ?></h1><a href="/index.html">Return to the website</a></main>
     <?php endif; ?>
-    <footer class="blog-footer"><div><a href="index.html">IGNOU Online Admission</a><span>Information and updates for online learners.</span></div><a href="contact.html">Contact us →</a></footer>
+    <footer class="blog-footer"><div><a href="/index.html">IGNOU Online Admission</a><span>Information and updates for online learners.</span></div><a href="/contact.html">Contact us →</a></footer>
 </body>
 </html>
