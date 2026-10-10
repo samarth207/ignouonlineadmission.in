@@ -7,26 +7,34 @@ $post = null;
 $categories = [];
 $posts = [];
 $canonical = 'https://ignouonlineadmission.in/blog/';
-blog_db()->exec("UPDATE blogs SET status = 'published' WHERE status = 'scheduled' AND publish_date <= UTC_TIMESTAMP()");
-if ($slug !== '') {
-    if (!preg_match('/^[a-z0-9-]{1,180}$/', $slug)) {
-        http_response_code(404);
-    } else {
-        $query = blog_db()->prepare("SELECT b.*, a.name AS author_name, a.image AS author_image, a.bio AS author_bio FROM blogs b LEFT JOIN blog_authors a ON a.id = b.author_id WHERE b.slug = ? AND b.status = 'published' AND (b.publish_date IS NULL OR b.publish_date <= UTC_TIMESTAMP()) LIMIT 1");
-        $query->execute([$slug]);
-        $post = $query->fetch(PDO::FETCH_ASSOC) ?: null;
-        if ($post) {
-            blog_db()->prepare('UPDATE blogs SET views = views + 1 WHERE id = ?')->execute([(int) $post['id']]);
-            $categoryQuery = blog_db()->prepare('SELECT c.name, c.slug FROM blog_categories c JOIN blog_category_relations r ON r.category_id = c.id WHERE r.blog_id = ? AND c.is_active = 1 ORDER BY c.name');
-            $categoryQuery->execute([(int) $post['id']]);
-            $categories = $categoryQuery->fetchAll(PDO::FETCH_ASSOC);
-            $canonical .= rawurlencode($slug);
-        } else {
+$databaseAvailable = true;
+try {
+    $db = blog_db();
+    $db->exec("UPDATE blogs SET status = 'published' WHERE status = 'scheduled' AND publish_date <= UTC_TIMESTAMP()");
+    if ($slug !== '') {
+        if (!preg_match('/^[a-z0-9-]{1,180}$/', $slug)) {
             http_response_code(404);
+        } else {
+            $query = $db->prepare("SELECT b.*, a.name AS author_name, a.image AS author_image, a.bio AS author_bio FROM blogs b LEFT JOIN blog_authors a ON a.id = b.author_id WHERE b.slug = ? AND b.status = 'published' AND (b.publish_date IS NULL OR b.publish_date <= UTC_TIMESTAMP()) LIMIT 1");
+            $query->execute([$slug]);
+            $post = $query->fetch(PDO::FETCH_ASSOC) ?: null;
+            if ($post) {
+                $db->prepare('UPDATE blogs SET views = views + 1 WHERE id = ?')->execute([(int) $post['id']]);
+                $categoryQuery = $db->prepare('SELECT c.name, c.slug FROM blog_categories c JOIN blog_category_relations r ON r.category_id = c.id WHERE r.blog_id = ? AND c.is_active = 1 ORDER BY c.name');
+                $categoryQuery->execute([(int) $post['id']]);
+                $categories = $categoryQuery->fetchAll(PDO::FETCH_ASSOC);
+                $canonical .= rawurlencode($slug);
+            } else {
+                http_response_code(404);
+            }
         }
+    } else {
+        $posts = $db->query("SELECT b.id, b.title, b.slug, b.excerpt, b.feature_image, b.feature_image_alt, b.publish_date, b.read_time, a.name AS author_name FROM blogs b LEFT JOIN blog_authors a ON a.id = b.author_id WHERE b.status = 'published' AND (b.publish_date IS NULL OR b.publish_date <= UTC_TIMESTAMP()) ORDER BY b.publish_date DESC, b.updated_at DESC LIMIT 24")->fetchAll(PDO::FETCH_ASSOC);
     }
-} else {
-    $posts = blog_db()->query("SELECT b.id, b.title, b.slug, b.excerpt, b.feature_image, b.feature_image_alt, b.publish_date, b.read_time, a.name AS author_name FROM blogs b LEFT JOIN blog_authors a ON a.id = b.author_id WHERE b.status = 'published' AND (b.publish_date IS NULL OR b.publish_date <= UTC_TIMESTAMP()) ORDER BY b.publish_date DESC, b.updated_at DESC LIMIT 24")->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $error) {
+    error_log('Public blog request failed: ' . $error->getMessage());
+    $databaseAvailable = false;
+    http_response_code(503);
 }
 
 $pageTitle = $post ? (string) ($post['meta_title'] ?: $post['title']) : 'IGNOU Online Admission Blog';
@@ -86,6 +94,8 @@ $schema = $post ? json_encode([
                 if (!items.length) document.querySelector('.article-toc').hidden = true;
             })();
         </script>
+    <?php elseif (!$databaseAvailable): ?>
+        <main class="blog-empty"><p>IGNOU ONLINE ADMISSION</p><h1>The blog is temporarily unavailable.</h1><a href="index.html">Return to the website</a></main>
     <?php elseif ($posts): ?>
         <main class="blog-index"><header class="blog-index-heading"><p>IGNOU ONLINE ADMISSION</p><h1>Learning, one story at a time.</h1><span>Updates and practical guidance for your next step.</span></header><div class="post-grid"><?php foreach ($posts as $item): ?><article class="post-card"><a class="post-image" href="/blog/<?= rawurlencode($item['slug']) ?>"><img src="<?= blog_escape($item['feature_image']) ?>" alt="<?= blog_escape($item['feature_image_alt']) ?>" loading="lazy"></a><div class="post-card-copy"><p class="post-meta"><?= blog_escape(date('M j, Y', strtotime((string) $item['publish_date']))) ?> <span>·</span> <?= (int) $item['read_time'] ?> min read</p><h2><a href="/blog/<?= rawurlencode($item['slug']) ?>"><?= blog_escape($item['title']) ?></a></h2><p><?= blog_escape($item['excerpt']) ?></p><a class="read-link" href="/blog/<?= rawurlencode($item['slug']) ?>">Read story <span>→</span></a></div></article><?php endforeach; ?></div></main>
     <?php else: ?>
