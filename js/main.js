@@ -1,3 +1,28 @@
+var siteNav = document.querySelector('#nav-menu-container .nav-menu');
+if (siteNav && !siteNav.querySelector('[data-blog-nav]')) {
+    var blogNavItem = document.createElement('li');
+    blogNavItem.dataset.blogNav = 'true';
+    var blogNavLink = document.createElement('a');
+    blogNavLink.href = '/blog/';
+    blogNavLink.textContent = 'Blog';
+    blogNavItem.appendChild(blogNavLink);
+    siteNav.appendChild(blogNavItem);
+}
+
+(function () {
+    if (/\/programme\/p\d+\.html$/.test(location.pathname) && !document.querySelector('script[data-course-details-loader]')) {
+        var detailsScript = document.createElement('script');
+        detailsScript.src = new URL('course-details.js', document.currentScript.src).href;
+        detailsScript.dataset.courseDetailsLoader = 'true';
+        document.head.appendChild(detailsScript);
+    }
+    if (document.querySelector('script[data-enquiry-loader]')) return;
+    var enquiryScript = document.createElement('script');
+    enquiryScript.src = new URL('enquiry.js', document.currentScript.src).href;
+    enquiryScript.dataset.enquiryLoader = 'true';
+    document.head.appendChild(enquiryScript);
+})();
+
 jQuery(document).ready(function ($) {
 
 

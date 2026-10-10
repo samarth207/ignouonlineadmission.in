@@ -1,0 +1,82 @@
+CREATE TABLE IF NOT EXISTS admin_users (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(80) NOT NULL UNIQUE,
+    email VARCHAR(254) NOT NULL DEFAULT '',
+    password_hash VARCHAR(255) NOT NULL,
+    full_name VARCHAR(160) NOT NULL,
+    role VARCHAR(40) NOT NULL DEFAULT 'editor',
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    last_login DATETIME NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS blog_authors (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(160) NOT NULL,
+    bio TEXT NULL,
+    image VARCHAR(500) NULL,
+    page_url VARCHAR(500) NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS blog_categories (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(120) NOT NULL,
+    slug VARCHAR(140) NOT NULL UNIQUE,
+    description TEXT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS blog_tags (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    slug VARCHAR(120) NOT NULL UNIQUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS blogs (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(70) NOT NULL,
+    slug VARCHAR(180) NOT NULL UNIQUE,
+    excerpt VARCHAR(250) NOT NULL,
+    content LONGTEXT NOT NULL,
+    toc JSON NULL,
+    feature_image VARCHAR(500) NOT NULL,
+    feature_image_alt VARCHAR(250) NOT NULL,
+    feature_image_title VARCHAR(250) NULL,
+    meta_title VARCHAR(70) NOT NULL,
+    meta_description VARCHAR(250) NOT NULL,
+    focus_keyword VARCHAR(160) NOT NULL,
+    primary_keyword VARCHAR(160) NULL,
+    author_id BIGINT UNSIGNED NULL,
+    status ENUM('draft','pending','published','scheduled','deleted') NOT NULL DEFAULT 'draft',
+    publish_date DATETIME NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    og_image VARCHAR(500) NULL,
+    canonical_url VARCHAR(500) NULL,
+    schema_json JSON NULL,
+    views BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    read_time SMALLINT UNSIGNED NOT NULL DEFAULT 1,
+    CONSTRAINT fk_blogs_author FOREIGN KEY (author_id) REFERENCES blog_authors(id) ON DELETE SET NULL,
+    INDEX idx_blogs_status_date (status, publish_date),
+    INDEX idx_blogs_updated (updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS blog_category_relations (
+    blog_id BIGINT UNSIGNED NOT NULL,
+    category_id BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY (blog_id, category_id),
+    CONSTRAINT fk_blog_category_blog FOREIGN KEY (blog_id) REFERENCES blogs(id) ON DELETE CASCADE,
+    CONSTRAINT fk_blog_category_category FOREIGN KEY (category_id) REFERENCES blog_categories(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS blog_tag_relations (
+    blog_id BIGINT UNSIGNED NOT NULL,
+    tag_id BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY (blog_id, tag_id),
+    CONSTRAINT fk_blog_tag_blog FOREIGN KEY (blog_id) REFERENCES blogs(id) ON DELETE CASCADE,
+    CONSTRAINT fk_blog_tag_tag FOREIGN KEY (tag_id) REFERENCES blog_tags(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
